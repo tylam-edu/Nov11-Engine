@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D Engine Animation</title>
+    <!-- Use the Inter font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #f4f4f5; /* Zinc 100 */
+            --canvas-bg: #ffffff; /* White */
+            --border-color: #d4d4d8; /* Zinc 300 */
+            --text-color: #3f3f46; /* Zinc 700 */
+            --label-color: #71717a; /* Zinc 500 */
+            --panel-bg: #ffffff; /* White */
+            --button-bg: #27272a; /* Zinc 800 */
+            --button-text: #ffffff;
+            --button-hover: #3f3f46; /* Zinc 700 */
+            --button-run-bg: #16a34a; /* Green 600 */
+            --button-run-hover: #15803d; /* Green 700 */
+
+            /* Engine Colors */
+            --block-color: #a1a1aa; /* Zinc 400 */
+            --piston-color: #71717a; /* Zinc 500 */
+            --conrod-color: #52525b; /* Zinc 600 */
+            --crank-color: #3f3f46; /* Zinc 700 */
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            font-weight: 700;
+            color: var(--button-bg);
+            margin-bottom: 20px;
+        }
+
+        #engineCanvas {
+            background-color: var(--canvas-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            max-width: 100%;
+        }
+
+        .controls-container {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            width: 100%;
+            max-width: 800px;
+            box-sizing: border-box;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .button-group button {
+            flex-grow: 1;
+            font-size: 1rem;
+            font-weight: 500;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background-color: var(--button-bg);
+            color: var(--button-text);
+            transition: background-color 0.2s ease;
+        }
+
+        .button-group button:hover {
+            background-color: var(--button-hover);
+        }
+        
+        .button-group button#startStopButton.running {
+            background-color: var(--button-run-bg);
+        }
+        .button-group button#startStopButton.running:hover {
+            background-color: var(--button-run-hover);
+        }
+
+        .slider-group {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        .slider-control {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .slider-control label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: var(--label-color);
+            margin-bottom: 8px;
+        }
+        
+        .slider-control label span:last-child {
+            font-weight: 500;
+            color: var(--text-color);
+        }
+
+        .slider-control input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 8px;
+            background: var(--border-color);
+            border-radius: 4px;
+            outline: none;
+        }
+        
+        /* Chrome, Safari, Opera */
+        .slider-control input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--button-bg);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        .slider-control input[type="range"]:hover::-webkit-slider-thumb {
+             background-color: var(--button-hover);
+        }
+
+        /* Firefox */
+        .slider-control input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: var(--button-bg);
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        .slider-control input[type="range"]:hover::-moz-range-thumb {
+            background-color: var(--button-hover);
+        }
+
+        /* Responsive layout for smaller screens */
+        @media (min-width: 640px) {
+            .slider-group {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>2D Engine Animation</h1>
+
+    <canvas id="engineCanvas" width="800" height="400"></canvas>
+
+    <div class="controls-container">
+        <div class="slider-group">
+            <div class="slider-control">
+                <label for="rpmSlider">
+                    <span>Speed (RPM)</span>
+                    <span id="rpmValue">1000 RPM</span>
+                </label>
+                <input type="range" id="rpmSlider" min="0" max="3000" value="1000" step="50">
+            </div>
+            <!-- FIX: Added this slider back, as it was missing in the HTML but referenced in the JS -->
+            <div class="slider-control">
+                <label for="pistonSlider">
+                    <span>Pistons</span>
+                    <span id="pistonValue">4</span>
+                </label>
+                <input type="range" id="pistonSlider" min="1" max="8" value="4" step="1">
+            </div>
+            <div class="slider-control">
+                <label for="strokeSlider">
+                    <span>Engine Size (Stroke)</span>
+                    <span id="strokeValue">40 px</span>
+                </label>
+                <input type="range" id="strokeSlider" min="20" max="60" value="40" step="1">
+            </div>
+            <div class="slider-control">
+                <label for="boreSlider">
+                    <span>Engine Size (Bore)</span>
+                    <span id="boreValue">50 px</span>
+                </label>
+                <input type="range" id="boreSlider" min="30" max="80" value="50" step="1">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // --- 1. GET DOM ELEMENTS ---
+            const canvas = document.getElementById('engineCanvas');
+            const ctx = canvas.getContext('2d');
+
+            const rpmSlider = document.getElementById('rpmSlider');
+            const pistonSlider = document.getElementById('pistonSlider');
+            const strokeSlider = document.getElementById('strokeSlider');
+            const boreSlider = document.getElementById('boreSlider');
+
+            const rpmValue = document.getElementById('rpmValue');
+            const pistonValue = document.getElementById('pistonValue');
+            const strokeValue = document.getElementById('strokeValue');
+            const boreValue = document.getElementById('boreValue');
+            
+            // --- 2. DEFINE ENGINE PARAMETERS ---
+            let numPistons = parseInt(pistonSlider.value, 10);
+            let stroke = parseInt(strokeSlider.value, 10); // This is the crank radius
+            let bore = parseInt(boreSlider.value, 10); // This is the piston width
+
+            let pistons = [];
+            let crankshaftY;
+            let conRodLength;
+            let pistonHeight;
+
+            let angle = 0;
+            let animationFrameId = null;
+            
+            // --- 3. PISTON CLASS ---
+            /**
+             * Represents a single piston assembly.
+             * It only stores its unique properties (horizontal position and crank offset).
+             * All other calculations are done in the update/draw methods.
+             */
+            class Piston {
+                constructor(x, crankOffsetAngle) {
+                    this.x = x; // Horizontal center of the piston
+                    this.crankOffsetAngle = crankOffsetAngle;
+
+                    // Calculated values, updated each frame
+                    this.pistonY = 0;
+                    this.crankPinX = 0;
+                    this.crankPinY = 0;
+                }
+
+                /**
+                 * Updates the positions of the piston and crank pin based on the global angle.
+                 */
+                update(globalAngle, currentStroke, currentConRodLength, currentCrankshaftY) {
+                    const currentAngle = globalAngle + this.crankOffsetAngle;
+
+                    // Calculate crank pin position
+                    this.crankPinX = this.x + Math.cos(currentAngle) * currentStroke;
+                    this.crankPinY = currentCrankshaftY + Math.sin(currentAngle) * currentStroke;
+
+                    // Calculate piston Y position using Pythagorean theorem
+                    // (This simplifies by assuming crank center X is same as piston center X)
+                    const horizontalOffset = this.crankPinX - this.x;
+                    const verticalOffset = Math.sqrt(Math.max(0, currentConRodLength**2 - horizontalOffset**2));
+                    
+                    // Piston Y is crank pin Y minus the vertical length of the con-rod
+                    this.pistonY = this.crankPinY - verticalOffset;
+                }
+
+                /**
+                 * Draws the piston, cylinder, con-rod, and crank throw.
+                 */
+                draw(ctx, currentBore, currentPistonHeight, currentCrankshaftY, currentConRodLength, currentStroke) {
+                    const topDeadCenter = currentCrankshaftY - currentConRodLength - currentStroke - 10;
+                    const bottomDrawLimit = currentCrankshaftY + currentStroke + 10;
+
+                    // 1. Draw Cylinder Block (static)
+                    ctx.fillStyle = 'var(--block-color)';
+                    ctx.globalAlpha = 0.1;
+                    ctx.fillRect(this.x - currentBore / 2 - 5, topDeadCenter, currentBore + 10, bottomDrawLimit - topDeadCenter);
+                    ctx.globalAlpha = 1.0;
+                    
+                    ctx.strokeStyle = 'var(--block-color)';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(this.x - currentBore / 2 - 5, topDeadCenter, currentBore + 10, bottomDrawLimit - topDeadCenter);
+
+
+                    // 2. Draw Piston
+                    ctx.fillStyle = 'var(--piston-color)';
+                    ctx.fillRect(this.x - currentBore / 2, this.pistonY - currentPistonHeight, currentBore, currentPistonHeight);
+
+                    // 3. Draw Connecting Rod
+                    ctx.strokeStyle = 'var(--conrod-color)';
+                    ctx.lineWidth = 6;
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.pistonY); // Piston pin
+                    ctx.lineTo(this.crankPinX, this.crankPinY); // Crank pin
+                    ctx.stroke();
+
+                    // 4. Draw Crank Throw
+                    ctx.strokeStyle = 'var(--crank-color)';
+                    ctx.lineWidth = 8;
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, currentCrankshaftY); // Crank main bearing
+                    ctx.lineTo(this.crankPinX, this.crankPinY); // Crank pin
+                    ctx.stroke();
+                    
+                    // 5. Draw Pins
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.pistonY, 4, 0, Math.PI * 2); // Piston pin
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(this.crankPinX, this.crankPinY, 4, 0, Math.PI * 2); // Crank pin
+                    ctx.fill();
+                }
+            }
+            
+            // --- 4. SETUP & RESIZE FUNCTION ---
+            /**
+             * (Re)initializes the engine based on current parameters.
+             * Called on load, resize, and when piston count changes.
+             */
+            function setupEngine() {
+                // Read parameters
+                numPistons = parseInt(pistonSlider.value, 10);
+                
+                // Set canvas size
+                const maxWidth = 800;
+                const containerWidth = window.innerWidth - 40;
+                canvas.width = Math.min(maxWidth, containerWidth);
+                canvas.height = 400; // Keep height fixed
+
+                // Calculate layout
+                crankshaftY = canvas.height * 0.7; // 70% down the canvas
+                
+                // Calculate spacing
+                const padding = 80;
+                const totalEngineWidth = canvas.width - padding * 2;
+                const pistonSpacing = (numPistons > 1) ? totalEngineWidth / (numPistons - 1) : 0;
+                const startX = (numPistons > 1) ? padding : canvas.width / 2;
+
+                // Create new piston objects
+                pistons = [];
+                for (let i = 0; i < numPistons; i++) {
+                    const x = startX + i * pistonSpacing;
+                    
+                    // Simple, evenly-spaced firing order (like a 2-stroke or gas turbine)
+                    // A real 4-stroke 4-cyl would be [0, PI, PI, 0]
+                    const crankOffsetAngle = (i * (Math.PI * 2)) / numPistons; 
+                    
+                    pistons.push(new Piston(x, crankOffsetAngle));
+                }
+                
+                updateLabels();
+            }
+
+            // --- 5. ANIMATION LOOP ---
+            function animate() {
+                // Schedule next frame
+                animationFrameId = requestAnimationFrame(animate);
+
+                // Update parameters from sliders (for real-time changes)
+                const rpm = parseInt(rpmSlider.value, 10);
+                stroke = parseInt(strokeSlider.value, 10);
+                bore = parseInt(boreSlider.value, 10);
+                
+                // Calculate speed in radians per frame
+                // (RPM / 60) = RPS
+                // (RPS * 2 * Math.PI) = Radians per second
+                // (Radians per second / 60fps) = Radians per frame
+                const speed = (rpm / 60 * 2 * Math.PI) / 60;
+
+                // Dependent calculations
+                conRodLength = stroke * 2.5; // A common ratio
+                pistonHeight = bore * 0.4; // Piston height based on width
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw Crankshaft Main Line
+                ctx.strokeStyle = 'var(--crank-color)';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(0, crankshaftY);
+                ctx.lineTo(canvas.width, crankshaftY);
+                ctx.stroke();
+
+                // Update and draw all pistons
+                angle += speed;
+                for (const piston of pistons) {
+                    piston.update(angle, stroke, conRodLength, crankshaftY);
+                    piston.draw(ctx, bore, pistonHeight, crankshaftY, conRodLength, stroke);
+                }
+            }
+            
+            // --- 6. EVENT LISTENERS & HELPERS ---
+            
+            function updateLabels() {
+                rpmValue.textContent = `${rpmSlider.value} RPM`;
+                pistonValue.textContent = pistonSlider.value;
+                strokeValue.textContent = `${strokeSlider.value} px`;
+                boreValue.textContent = `${boreSlider.value} px`;
+            }
+            
+            function toggleAnimation() {
+                isRunning = !isRunning;
+                if (isRunning) {
+                    startStopButton.textContent = 'Pause';
+                    startStopButton.classList.add('running');
+                    animate(); // Start the loop
+                } else {
+                    startStopButton.textContent = 'Start';
+                    startStopButton.classList.remove('running');
+                    if (animationFrameId) {
+                        cancelAnimationFrame(animationFrameId);
+                        animationFrameId = null;
+                    }
+                }
+            }
+
+            // RPM slider
+            rpmSlider.addEventListener('input', (e) => {
+                rpmValue.textContent = `${e.target.value} RPM`;
+            });
+            
+            // Piston slider REBUILDS the engine
+            pistonSlider.addEventListener('input', (e) => {
+                setupEngine();
+                pistonValue.textContent = e.target.value;
+            });
+            
+            // Other sliders just update values (read by 'animate' loop)
+            strokeSlider.addEventListener('input', (e) => {
+                strokeValue.textContent = `${e.targ-et.value} px`;
+            });
+            
+            boreSlider.addEventListener('input', (e) => {
+                boreValue.textContent = `${e.target.value} px`;
+            });
+            
+            window.addEventListener('resize', () => {
+                setupEngine();
+            });
+
+            // --- 7. INITIALIZATION ---
+            setupEngine();
+            updateLabels(); // Set all initial text values
+            animate();
+        });
+    </script>
+</body>
+</html>
